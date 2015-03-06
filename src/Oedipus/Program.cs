@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 
 using Fclp;
 
@@ -12,8 +13,8 @@ namespace Oedipus
     {
         #region Public Properties
 
-        public List<string> Files { get; set; }
-        public string Output { get; set; }
+        public List<string> AssemblyFiles { get; set; }
+        public string OutputDirectory { get; set; }
 
         #endregion
     }
@@ -23,24 +24,84 @@ namespace Oedipus
         #region Private Methods
 
         /// <summary>
-        ///     Create the ReStructured text file for all of public classes and interfaces in the assembly.
+        /// Creates the toctree for the classes in the assemblies.
         /// </summary>
-        /// <param name="assembly"></param>
-        /// <param name="root"></param>
-        /// <returns></returns>
-        private static IEnumerable<string> CreateReStructuredTextFile(Assembly assembly, string root)
+        /// <param name="assembly">The assembly.</param>
+        /// <param name="directory">The output directory.</param>
+        /// <returns>
+        /// Returns a <see cref="IEnumerable{String}" /> representing the name of the assembly rst file.
+        /// </returns>
+        /// <exception cref="System.ArgumentNullException">
+        /// assembly
+        /// or
+        /// outputDirectory
+        /// </exception>
+        private static IEnumerable<string> CreateAssemblyRst(Assembly assembly, string directory)
         {
-            var namespaces = assembly.GetTypes().GroupBy(o => o.Namespace);
+            if (assembly == null) throw new ArgumentNullException("assembly");
+            if (directory == null) throw new ArgumentNullException("directory");
+
+            // Create a sub-directory for each assembly file.
             string assemblyName = Path.GetFileNameWithoutExtension(assembly.Location);
+            string toctree = assemblyName.ToLower();
+            string root = Path.Combine(directory, toctree);
+
+            // Create the assembly folder.
+            Directory.CreateDirectory(root);
+
+            // Create a table of contents file that references the namespace files.
+            string toc = Path.Combine(directory, string.Format("{0}.rst", toctree));
+            using (StreamWriter sw = new StreamWriter(toc))
+            {
+                sw.WriteLine(assemblyName);
+                sw.WriteLine(new string('=', assemblyName.Length + 1));
+                sw.WriteLine("The API documentation for the contents of the {0} assembly.", assemblyName);
+                sw.WriteLine();
+                sw.WriteLine(".. toctree::");
+                sw.WriteLine("\t :maxdepth: 2");
+                sw.WriteLine();
+
+                // Load the assembly for reflection purposes only.
+                var namespaces = assembly.GetTypes().GroupBy(o => o.Namespace);
+                foreach (var rst in CreateNamespaceRst(namespaces, assemblyName, root).OrderBy(o => o))
+                {
+                    sw.WriteLine("\t {0}/{1}", toctree, rst);
+                }
+            }
+
+            yield return toctree;
+        }
+
+        /// <summary>
+        /// Create the ReStructured text file for all of public classes and interfaces in the assembly.
+        /// </summary>
+        /// <param name="namespaces">The namespaces.</param>
+        /// <param name="assemblyName">Name of the assembly.</param>
+        /// <param name="directory">The output directory.</param>
+        /// <returns>
+        /// Returns a <see cref="IEnumerable{String}" /> representing the rst files for the namespaces.
+        /// </returns>
+        /// <exception cref="System.ArgumentNullException">
+        /// namespaces
+        /// or
+        /// assemblyName
+        /// or
+        /// outputDirectory
+        /// </exception>
+        private static IEnumerable<string> CreateNamespaceRst(IEnumerable<IGrouping<string, Type>> namespaces, string assemblyName, string directory)
+        {
+            if (namespaces == null) throw new ArgumentNullException("namespaces");
+            if (assemblyName == null) throw new ArgumentNullException("assemblyName");
+            if (directory == null) throw new ArgumentNullException("directory");
 
             // Iterate through all of the namespaces that are not null.            
             foreach (var @namespace in namespaces.Where(o => o.Key != null))
             {
                 var list = @namespace.Where(o => o.IsPublic && o.IsClass && !o.IsGenericTypeDefinition).OrderBy(o => o.Name).ToList();
-                if(list.Count == 0) continue;
-                
+                if (list.Count == 0) continue;
+
                 // Create a RST file for each namespace.
-                string path = Path.Combine(root, string.Format("{0}.rst", @namespace.Key.ToLower()));
+                string path = Path.Combine(directory, string.Format("{0}.rst", @namespace.Key.ToLower()));
                 using (StreamWriter sw = new StreamWriter(path, false))
                 {
                     sw.WriteLine(@namespace.Key);
@@ -48,7 +109,7 @@ namespace Oedipus
                     sw.WriteLine();
 
                     // Write the doxygenclass tags for each public class or interface.
-                    string x = null; 
+                    string x = null;
                     foreach (var @class in list)
                     {
                         sw.Write(x);
@@ -65,14 +126,14 @@ namespace Oedipus
         }
 
         /// <summary>
-        /// The entry point for the executable.
+        ///     The entry point for the executable.
         /// </summary>
         /// <param name="args">The arguments.</param>
         private static void Main(string[] args)
         {
             var parser = new FluentCommandLineParser<ApplicationArguments>();
-            parser.Setup(arg => arg.Files).As('f', "files").Required();
-            parser.Setup(arg => arg.Output).As('o', "output").SetDefault(AppDomain.CurrentDomain.BaseDirectory + "\\apidocs");
+            parser.Setup(arg => arg.AssemblyFiles).As('f', "files").Required();
+            parser.Setup(arg => arg.OutputDirectory).As('o', "output").SetDefault(AppDomain.CurrentDomain.BaseDirectory + "\\apidocs");
 
             var results = parser.Parse(args);
             if (results.HasErrors)
@@ -85,7 +146,7 @@ namespace Oedipus
 
                 Run(parser.Object);
 
-                Console.WriteLine("Done.");
+                Console.WriteLine("D Ione.");
             }
         }
 
@@ -96,55 +157,48 @@ namespace Oedipus
         private static void Run(ApplicationArguments args)
         {
             // Drop the output directory.
-            string path = Path.GetFullPath(args.Output);
+            string path = Path.GetFullPath(args.OutputDirectory);
             if (Directory.Exists(path))
                 Directory.Delete(path, true);
-    
+
             // Create the directory.
             Directory.CreateDirectory(path);
 
             // Attempt to resolve the assembly references.
             AppDomain.CurrentDomain.ReflectionOnlyAssemblyResolve += (sender, a) => Assembly.ReflectionOnlyLoad(a.Name);
 
-            // Iterate through all of the assembly files.
-            foreach (var assemblyFile in args.Files.Where(File.Exists))
+            // Create the 'apidocs' subdirectory.
+            string apidocs = Path.Combine(path, "apidocs");
+            Directory.CreateDirectory(apidocs);
+
+            // Create the 'apidocs.rst' for the assemblies.
+            using (StreamWriter sw = new StreamWriter(Path.Combine(path, "apidocs.rst"), false))
             {
-                // Create a sub-directory for each assembly file.
-                string assemblyName = Path.GetFileNameWithoutExtension(assemblyFile);
-                if (assemblyName == null) return;                
+                sw.WriteLine("API");
+                sw.WriteLine(new string('=', 4));
+                sw.WriteLine("The API documentation has been automatically generated using the `Breathe <http://breathe.readthedocs.org/en/latest/>`_ extension for `Sphinx <http://sphinx-doc.org/index.html>`_ and is organized based on the assemblies.");
+                sw.WriteLine();
+                sw.WriteLine(".. toctree::");
+                sw.WriteLine("\t :maxdepth: 2");
+                sw.WriteLine();
 
-                string toctree = assemblyName.ToLower();
-                string root = Path.Combine(path, toctree);
-
-                // Drop the assembly folder.
-                if (Directory.Exists(root))
-                    Directory.Delete(root, true);
-                    
-                // Create the assembly folder.
-                Directory.CreateDirectory(root);
-
-                // Create a table of contents file that references the namespace files.
-                string toc = Path.Combine(args.Output, string.Format("{0}.rst", toctree));
-                using (StreamWriter sw = new StreamWriter(toc))
+                // Iterate through all of the assembly files.
+                foreach (var assemblyFile in args.AssemblyFiles.Where(File.Exists))
                 {
-                    sw.WriteLine(assemblyName);
-                    sw.WriteLine(new string('=', assemblyName.Length + 1));
-                    sw.WriteLine("The API documentation for the contents of the {0} assembly.", assemblyName);
-                    sw.WriteLine();
-                    sw.WriteLine(".. toctree::");
-                    sw.WriteLine("\t :maxdepth: 2");
-                    sw.WriteLine();
+                    // Create a sub-directory for each assembly file.
+                    string assemblyName = Path.GetFileNameWithoutExtension(assemblyFile);
+                    if (assemblyName == null) continue;
 
-                    // Load the assembly for reflection purposes only.
+                    // Load the assembly and create the rst file.
                     Assembly assembly = Assembly.ReflectionOnlyLoadFrom(assemblyFile);
-                    foreach (var rst in CreateReStructuredTextFile(assembly, root).OrderBy(o => o))
+                    foreach (var rst in CreateAssemblyRst(assembly, apidocs))
                     {
-                        sw.WriteLine("\t {0}/{1}", toctree, rst);
+                        sw.WriteLine("\t {0}/{1}", "apidocs", rst);
                     }
                 }
             }
-        }
 
-        #endregion
+            #endregion
+        }
     }
 }

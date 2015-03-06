@@ -1,22 +1,14 @@
 
-# Wave #
-[![Documentation Status](https://readthedocs.org/projects/wave/badge/?version=latest)](http://wave.readthedocs.org/en/latest/) [![Stories in Ready](https://badge.waffle.io/Jumpercables/Wave.png?label=ready&title=Ready)](https://waffle.io/Jumpercables/Wave)
-
-Wave is a C# library that extends the ESRI ArcObjects and Schneider Electric ArcFM APIs that are used for developing Geographical Information System (GIS) extensions to the ArcMap and ArcFM software or stand-alone applications. The library uses extension methods to extend the functionality of existing objects and provide workable wrappers around commonly used COM objects.
+# Oedipus #
+Oedipus is C# command line utility that will generate reStructured text (rst) files for .NET assemblies, that can be used for automatically generation API documentation using the Sphinx and Breathe projects.
 
 ## Documentation ##
-The documentation has been moved to [wave.readthedocs.org](http://wave.readthedocs.org).
+The utility requires that the [-f] and [-o] parameters are specified.
 
-## Installation ##
-
-In the future, installation will be provided by a a nuget package, however, until that time comes you'll need to compile the code.
 
 ### Requirements ###
-- ArcGIS 9.3.1 SP2
-- ArcFM 9.3.1 SP2
-- 3.5 SP 1 .NET Framework
+- 4.5 .NET Framework
 - Visual Studio 2010+
 
 ### Third Party Libraries ###
-
-- log4net 2.0.3
+- FluentCommandLineParser.1.4.1
