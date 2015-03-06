@@ -21,7 +21,7 @@ namespace Oedipus
 
     internal class Program
     {
-        #region Private Methods
+
 
         /// <summary>
         /// Creates the toctree for the classes in the assemblies.
@@ -142,63 +142,48 @@ namespace Oedipus
             }
             else
             {
-                Console.WriteLine("Generating...");
+                // Drop the output directory.
+                string path = Path.GetFullPath(parser.Object.OutputDirectory);
+                if (Directory.Exists(path))
+                    Directory.Delete(path, true);
 
-                Run(parser.Object);
+                // Create the directory.
+                Directory.CreateDirectory(path);
 
-                Console.WriteLine("D Ione.");
-            }
-        }
+                // Attempt to resolve the assembly references.
+                AppDomain.CurrentDomain.ReflectionOnlyAssemblyResolve += (sender, a) => Assembly.ReflectionOnlyLoad(a.Name);
 
-        /// <summary>
-        ///     Runs console application with the specified arguments.
-        /// </summary>
-        /// <param name="args">The arguments.</param>
-        private static void Run(ApplicationArguments args)
-        {
-            // Drop the output directory.
-            string path = Path.GetFullPath(args.OutputDirectory);
-            if (Directory.Exists(path))
-                Directory.Delete(path, true);
+                // Create the 'apidocs' subdirectory.
+                string apidocs = Path.Combine(path, "apidocs");
+                Directory.CreateDirectory(apidocs);
 
-            // Create the directory.
-            Directory.CreateDirectory(path);
-
-            // Attempt to resolve the assembly references.
-            AppDomain.CurrentDomain.ReflectionOnlyAssemblyResolve += (sender, a) => Assembly.ReflectionOnlyLoad(a.Name);
-
-            // Create the 'apidocs' subdirectory.
-            string apidocs = Path.Combine(path, "apidocs");
-            Directory.CreateDirectory(apidocs);
-
-            // Create the 'apidocs.rst' for the assemblies.
-            using (StreamWriter sw = new StreamWriter(Path.Combine(path, "apidocs.rst"), false))
-            {
-                sw.WriteLine("API");
-                sw.WriteLine(new string('=', 4));
-                sw.WriteLine("The API documentation has been automatically generated using the `Breathe <http://breathe.readthedocs.org/en/latest/>`_ extension for `Sphinx <http://sphinx-doc.org/index.html>`_ and is organized based on the assemblies.");
-                sw.WriteLine();
-                sw.WriteLine(".. toctree::");
-                sw.WriteLine("\t :maxdepth: 2");
-                sw.WriteLine();
-
-                // Iterate through all of the assembly files.
-                foreach (var assemblyFile in args.AssemblyFiles.Where(File.Exists))
+                // Create the 'apidocs.rst' for the assemblies.
+                using (StreamWriter sw = new StreamWriter(Path.Combine(path, "apidocs.rst"), false))
                 {
-                    // Create a sub-directory for each assembly file.
-                    string assemblyName = Path.GetFileNameWithoutExtension(assemblyFile);
-                    if (assemblyName == null) continue;
+                    sw.WriteLine("API");
+                    sw.WriteLine(new string('=', 4));
+                    sw.WriteLine("The API documentation has been automatically generated using the `Breathe <http://breathe.readthedocs.org/en/latest/>`_ extension for `Sphinx <http://sphinx-doc.org/index.html>`_ and is organized based on the assemblies.");
+                    sw.WriteLine();
+                    sw.WriteLine(".. toctree::");
+                    sw.WriteLine("\t :maxdepth: 2");
+                    sw.WriteLine();
 
-                    // Load the assembly and create the rst file.
-                    Assembly assembly = Assembly.ReflectionOnlyLoadFrom(assemblyFile);
-                    foreach (var rst in CreateAssemblyRst(assembly, apidocs))
+                    // Iterate through all of the assembly files.
+                    foreach (var assemblyFile in parser.Object.AssemblyFiles.Where(File.Exists))
                     {
-                        sw.WriteLine("\t {0}/{1}", "apidocs", rst);
+                        // Create a sub-directory for each assembly file.
+                        string assemblyName = Path.GetFileNameWithoutExtension(assemblyFile);
+                        if (assemblyName == null) continue;
+
+                        // Load the assembly and create the rst file.
+                        Assembly assembly = Assembly.ReflectionOnlyLoadFrom(assemblyFile);
+                        foreach (var rst in CreateAssemblyRst(assembly, apidocs))
+                        {
+                            sw.WriteLine("\t {0}/{1}", "apidocs", rst);
+                        }
                     }
                 }
             }
-
-            #endregion
         }
     }
 }
