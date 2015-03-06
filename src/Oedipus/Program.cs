@@ -24,7 +24,7 @@ namespace Oedipus
 
 
         /// <summary>
-        /// Creates the toctree for the classes in the assemblies.
+        /// Create the reStructured text file for the assembly.
         /// </summary>
         /// <param name="assembly">The assembly.</param>
         /// <param name="directory">The output directory.</param>
@@ -73,7 +73,7 @@ namespace Oedipus
         }
 
         /// <summary>
-        /// Create the ReStructured text file for all of public classes and interfaces in the assembly.
+        /// Create the reStructured text file for the namespaces.
         /// </summary>
         /// <param name="namespaces">The namespaces.</param>
         /// <param name="assemblyName">Name of the assembly.</param>
@@ -95,25 +95,26 @@ namespace Oedipus
             if (directory == null) throw new ArgumentNullException("directory");
 
             // Iterate through all of the namespaces that are not null.            
-            foreach (var @namespace in namespaces.Where(o => o.Key != null))
+            foreach (var name in namespaces.Where(o => o.Key != null))
             {
-                var list = @namespace.Where(o => o.IsPublic && o.IsClass && !o.IsGenericTypeDefinition).OrderBy(o => o.Name).ToList();
+                // NOTE: The doxygenclass does not support interfaces and generic definitions.
+                var list = name.Where(o => o.IsPublic && o.IsClass && !o.IsGenericTypeDefinition).OrderBy(o => o.Name).ToList();
                 if (list.Count == 0) continue;
 
                 // Create a RST file for each namespace.
-                string path = Path.Combine(directory, string.Format("{0}.rst", @namespace.Key.ToLower()));
+                string path = Path.Combine(directory, string.Format("{0}.rst", name.Key.ToLower()));
                 using (StreamWriter sw = new StreamWriter(path, false))
                 {
-                    sw.WriteLine(@namespace.Key);
-                    sw.WriteLine(new string('=', @namespace.Key.Length + 1));
+                    sw.WriteLine(name.Key);
+                    sw.WriteLine(new string('=', name.Key.Length + 1));
                     sw.WriteLine();
 
                     // Write the doxygenclass tags for each public class or interface.
                     string x = null;
-                    foreach (var @class in list)
+                    foreach (var type in list)
                     {
                         sw.Write(x);
-                        sw.WriteLine(".. doxygenclass:: {0}", @class.FullName.Replace(".", "::"));
+                        sw.WriteLine(".. doxygenclass:: {0}", type.FullName.Replace(".", "::"));
                         sw.WriteLine("\t :project: {0}", assemblyName);
                         sw.WriteLine(string.Format("\t :members:"));
 
@@ -121,7 +122,7 @@ namespace Oedipus
                     }
                 }
 
-                yield return @namespace.Key.ToLower();
+                yield return name.Key.ToLower();
             }
         }
 
@@ -153,9 +154,9 @@ namespace Oedipus
                 // Attempt to resolve the assembly references.
                 AppDomain.CurrentDomain.ReflectionOnlyAssemblyResolve += (sender, a) => Assembly.ReflectionOnlyLoad(a.Name);
 
-                // Create the 'apidocs' subdirectory.
+                // Create the 'apidocs' subdirectory.                
                 string apidocs = Path.Combine(path, "apidocs");
-                Directory.CreateDirectory(apidocs);
+                DirectoryInfo di = Directory.CreateDirectory(apidocs);
 
                 // Create the 'apidocs.rst' for the assemblies.
                 using (StreamWriter sw = new StreamWriter(Path.Combine(path, "apidocs.rst"), false))
@@ -179,7 +180,7 @@ namespace Oedipus
                         Assembly assembly = Assembly.ReflectionOnlyLoadFrom(assemblyFile);
                         foreach (var rst in CreateAssemblyRst(assembly, apidocs))
                         {
-                            sw.WriteLine("\t {0}/{1}", "apidocs", rst);
+                            sw.WriteLine("\t {0}/{1}", di.Name, rst);
                         }
                     }
                 }
