@@ -3,38 +3,60 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Security.Cryptography;
 
 using Fclp;
 
 namespace Oedipus
 {
+    /// <summary>
+    ///     The application arguments.
+    /// </summary>
     internal class ApplicationArguments
     {
         #region Public Properties
 
+        /// <summary>
+        ///     Gets or sets the assembly files.
+        /// </summary>
+        /// <value>
+        ///     The assembly files.
+        /// </value>
         public List<string> AssemblyFiles { get; set; }
+
+        /// <summary>
+        ///     Gets or sets the output directory.
+        /// </summary>
+        /// <value>
+        ///     The output directory.
+        /// </value>
         public string OutputDirectory { get; set; }
 
+        /// <summary>
+        /// Gets or sets the description.
+        /// </summary>
+        /// <value>
+        /// The description.
+        /// </value>
+        public string Description { get; set; }
         #endregion
     }
 
     internal class Program
     {
-
+        #region Private Methods
 
         /// <summary>
-        /// Create the reStructured text file for the assembly.
+        ///     Create the reStructured text file for the assembly.
         /// </summary>
         /// <param name="assembly">The assembly.</param>
         /// <param name="directory">The output directory.</param>
         /// <returns>
-        /// Returns a <see cref="IEnumerable{String}" /> representing the name of the assembly rst file.
+        ///     Returns a <see cref="IEnumerable{String}" /> representing the name of the assembly rst file.
         /// </returns>
         /// <exception cref="System.ArgumentNullException">
-        /// assembly
-        /// or
-        /// outputDirectory
+        ///     assembly
+        ///     or
+        ///     outputDirectory
         /// </exception>
         private static IEnumerable<string> CreateAssemblyRst(Assembly assembly, string directory)
         {
@@ -73,20 +95,20 @@ namespace Oedipus
         }
 
         /// <summary>
-        /// Create the reStructured text file for the namespaces.
+        ///     Create the reStructured text file for the namespaces.
         /// </summary>
         /// <param name="namespaces">The namespaces.</param>
         /// <param name="assemblyName">Name of the assembly.</param>
         /// <param name="directory">The output directory.</param>
         /// <returns>
-        /// Returns a <see cref="IEnumerable{String}" /> representing the rst files for the namespaces.
+        ///     Returns a <see cref="IEnumerable{String}" /> representing the rst files for the namespaces.
         /// </returns>
         /// <exception cref="System.ArgumentNullException">
-        /// namespaces
-        /// or
-        /// assemblyName
-        /// or
-        /// outputDirectory
+        ///     namespaces
+        ///     or
+        ///     assemblyName
+        ///     or
+        ///     outputDirectory
         /// </exception>
         private static IEnumerable<string> CreateNamespaceRst(IEnumerable<IGrouping<string, Type>> namespaces, string assemblyName, string directory)
         {
@@ -135,6 +157,7 @@ namespace Oedipus
             var parser = new FluentCommandLineParser<ApplicationArguments>();
             parser.Setup(arg => arg.AssemblyFiles).As('f', "files").Required();
             parser.Setup(arg => arg.OutputDirectory).As('o', "output").SetDefault(AppDomain.CurrentDomain.BaseDirectory + "\\apidocs");
+            parser.Setup(arg => arg.Description).As('d', "description").SetDefault("The API documentation has been generated using `Oedipus <https://github.com/Jumpercables/Oedipus>`_ and built using the `Breathe <http://breathe.readthedocs.org/en/latest/>`_ extension for `Sphinx <http://sphinx-doc.org/index.html>`_.");
 
             var results = parser.Parse(args);
             if (results.HasErrors)
@@ -163,7 +186,7 @@ namespace Oedipus
                 {
                     sw.WriteLine("API");
                     sw.WriteLine(new string('=', 4));
-                    sw.WriteLine("The API documentation has been automatically generated using the `Breathe <http://breathe.readthedocs.org/en/latest/>`_ extension for `Sphinx <http://sphinx-doc.org/index.html>`_ and is organized based on the assemblies.");
+                    sw.WriteLine(parser.Object.Description);
                     sw.WriteLine();
                     sw.WriteLine(".. toctree::");
                     sw.WriteLine("\t :maxdepth: 2");
@@ -186,5 +209,7 @@ namespace Oedipus
                 }
             }
         }
+
+        #endregion
     }
 }
