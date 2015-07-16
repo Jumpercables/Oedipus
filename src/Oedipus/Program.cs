@@ -24,6 +24,14 @@ namespace Oedipus
         public List<string> AssemblyFiles { get; set; }
 
         /// <summary>
+        ///     Gets or sets the description.
+        /// </summary>
+        /// <value>
+        ///     The description.
+        /// </value>
+        public string Description { get; set; }
+
+        /// <summary>
         ///     Gets or sets the output directory.
         /// </summary>
         /// <value>
@@ -31,13 +39,6 @@ namespace Oedipus
         /// </value>
         public string OutputDirectory { get; set; }
 
-        /// <summary>
-        /// Gets or sets the description.
-        /// </summary>
-        /// <value>
-        /// The description.
-        /// </value>
-        public string Description { get; set; }
         #endregion
     }
 
@@ -58,7 +59,7 @@ namespace Oedipus
         ///     or
         ///     outputDirectory
         /// </exception>
-        private static IEnumerable<string> CreateAssemblyRst(Assembly assembly, string directory)
+        private IEnumerable<string> CreateAssemblyRst(Assembly assembly, string directory)
         {
             if (assembly == null) throw new ArgumentNullException("assembly");
             if (directory == null) throw new ArgumentNullException("directory");
@@ -85,7 +86,7 @@ namespace Oedipus
 
                 // Load the assembly for reflection purposes only.
                 var namespaces = assembly.GetTypes().GroupBy(o => o.Namespace);
-                foreach (var rst in CreateNamespaceRst(namespaces, assemblyName, root).OrderBy(o => o))
+                foreach (var rst in this.CreateNamespaceRst(namespaces, assemblyName, root).OrderBy(o => o))
                 {
                     sw.WriteLine("\t {0}/{1}", toctree, rst);
                 }
@@ -110,7 +111,7 @@ namespace Oedipus
         ///     or
         ///     outputDirectory
         /// </exception>
-        private static IEnumerable<string> CreateNamespaceRst(IEnumerable<IGrouping<string, Type>> namespaces, string assemblyName, string directory)
+        private IEnumerable<string> CreateNamespaceRst(IEnumerable<IGrouping<string, Type>> namespaces, string assemblyName, string directory)
         {
             if (namespaces == null) throw new ArgumentNullException("namespaces");
             if (assemblyName == null) throw new ArgumentNullException("assemblyName");
@@ -153,6 +154,25 @@ namespace Oedipus
         /// </summary>
         /// <param name="args">The arguments.</param>
         private static void Main(string[] args)
+        {
+            try
+            {
+                new Program().Run(args);
+            }
+            catch (AggregateException ex)
+            {
+                foreach (var e in ex.InnerExceptions)
+                {
+                    Console.WriteLine("ERROR: " + e.Message);
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Runs program as a task
+        /// </summary>
+        /// <param name="args">The arguments.</param>
+        private void Run(string[] args)
         {
             var parser = new FluentCommandLineParser<ApplicationArguments>();
             parser.Setup(arg => arg.AssemblyFiles).As('f', "files").Required();
@@ -201,7 +221,7 @@ namespace Oedipus
 
                         // Load the assembly and create the rst file.
                         Assembly assembly = Assembly.ReflectionOnlyLoadFrom(assemblyFile);
-                        foreach (var rst in CreateAssemblyRst(assembly, apidocs))
+                        foreach (var rst in this.CreateAssemblyRst(assembly, apidocs))
                         {
                             sw.WriteLine("\t {0}/{1}", di.Name, rst);
                         }
