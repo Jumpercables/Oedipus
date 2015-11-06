@@ -62,7 +62,7 @@ namespace Oedipus
         private IEnumerable<string> CreateAssemblyRst(Assembly assembly, string directory)
         {
             if (assembly == null) throw new ArgumentNullException("assembly");
-            if (directory == null) throw new ArgumentNullException("directory");
+            if (directory == null) throw new ArgumentNullException("directory");           
 
             // Create a sub-directory for each assembly file.
             string assemblyName = Path.GetFileNameWithoutExtension(assembly.Location);
@@ -74,6 +74,9 @@ namespace Oedipus
 
             // Create a table of contents file that references the namespace files.
             string toc = Path.Combine(directory, string.Format("{0}.rst", toctree));
+
+            Log.Debug(this, "\tCreating {0}.rst", toctree);
+
             using (StreamWriter sw = new StreamWriter(toc))
             {
                 sw.WriteLine(assemblyName);
@@ -125,6 +128,8 @@ namespace Oedipus
                 if (list.Count == 0) continue;
 
                 // Create a RST file for each namespace.
+                Log.Debug(this, "\t\tCreating {0}.rst", name.Key.ToLower());
+
                 string path = Path.Combine(directory, string.Format("{0}.rst", name.Key.ToLower()));
                 using (StreamWriter sw = new StreamWriter(path, false))
                 {
@@ -213,11 +218,13 @@ namespace Oedipus
                     sw.WriteLine();
 
                     // Iterate through all of the assembly files.
-                    foreach (var assemblyFile in parser.Object.AssemblyFiles.Where(File.Exists))
-                    {
+                    foreach (var assemblyFile in parser.Object.AssemblyFiles.Select(Path.GetFullPath))
+                    {                        
                         // Create a sub-directory for each assembly file.
                         string assemblyName = Path.GetFileNameWithoutExtension(assemblyFile);
-                        if (assemblyName == null) continue;
+                        if (assemblyName == null) continue;                        
+
+                        Log.Info(this, "Creating {0} files.", assemblyName);
 
                         // Load the assembly and create the rst file.
                         Assembly assembly = Assembly.ReflectionOnlyLoadFrom(assemblyFile);
